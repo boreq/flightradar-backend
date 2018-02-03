@@ -13,4 +13,6 @@ type Aggregator interface {
 	// Newest returns the map which links the ADS-B/MODE-S aircraft id with
 	// the latest data for that aircraft.
 	Newest() map[string]storage.Data
+
+	storage.ReadStorage
 }

@@ -4,8 +4,17 @@ import (
 	"time"
 )
 
-type Storage interface {
+type ReadStorage interface {
+	Retrieve(icao string) (<-chan StoredData, error)
+}
+
+type WriteStorage interface {
 	Store(data Data) error
+}
+
+type Storage interface {
+	ReadStorage
+	WriteStorage
 }
 
 type Data struct {

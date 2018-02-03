@@ -1,13 +1,18 @@
 package flatfiles
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
+	"github.com/boreq/flightradar-backend/logging"
 	"github.com/boreq/flightradar-backend/storage"
 	"os"
 	"path"
+	"regexp"
 	"time"
 )
+
+var log = logging.GetLogger("storage/flatfiles")
 
 func New(directory string) storage.Storage {
 	rv := &flatfiles{directory: directory}
@@ -36,7 +41,11 @@ func (f *flatfiles) Store(data storage.Data) error {
 	j = append(j, []byte("\n")...)
 
 	// Create directories
-	filepath := f.getFileForPlane(*data.ICAO)
+	filepath, err := f.getFileForPlane(*data.ICAO)
+	if err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(path.Dir(filepath), 0755); err != nil {
 		return err
 	}
@@ -56,6 +65,46 @@ func (f *flatfiles) Store(data storage.Data) error {
 	return nil
 }
 
-func (f *flatfiles) getFileForPlane(icao string) string {
-	return path.Join(f.directory, "planes", icao)
+var icaoRegex = regexp.MustCompile("[^a-zA-Z0-9]+")
+
+func (f *flatfiles) getFileForPlane(icao string) (string, error) {
+	if icaoRegex.ReplaceAllString(icao, "") != icao {
+		return "", errors.New("ICAO must be alphanumeric")
+	}
+	return path.Join(f.directory, "planes", icao), nil
+}
+
+func (f *flatfiles) Retrieve(icao string) (<-chan storage.StoredData, error) {
+	filepath, err := f.getFileForPlane(icao)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+
+	c := make(chan storage.StoredData)
+	go func() {
+		defer file.Close()
+		defer close(c)
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			var storedData storage.StoredData
+			print(scanner.Text())
+			print("\n")
+			err := json.Unmarshal(scanner.Bytes(), &storedData)
+			if err != nil {
+				log.Printf("Error for %s: %s", icao, err)
+				continue
+			}
+			c <- storedData
+		}
+
+		if err := scanner.Err(); err != nil {
+			log.Printf("Error for %s: %s", icao, err)
+		}
+	}()
+	return c, nil
 }

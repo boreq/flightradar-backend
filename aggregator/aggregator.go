@@ -101,3 +101,7 @@ func (a *aggregator) Newest() map[string]storage.Data {
 	}
 	return rv
 }
+
+func (a *aggregator) Retrieve(icao string) (<-chan storage.StoredData, error) {
+	return a.storage.Retrieve(icao)
+}
