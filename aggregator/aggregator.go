@@ -2,7 +2,7 @@ package aggregator
 
 import (
 	"fmt"
-	"github.com/boreq/flightradar/storage"
+	"github.com/boreq/flightradar-backend/storage"
 	"os"
 	"time"
 )

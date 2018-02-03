@@ -3,7 +3,7 @@ package flatfiles
 import (
 	"encoding/json"
 	"errors"
-	"github.com/boreq/flightradar/storage"
+	"github.com/boreq/flightradar-backend/storage"
 	"os"
 	"path"
 	"time"

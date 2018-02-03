@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"github.com/boreq/flightradar/config"
+	"github.com/boreq/flightradar-backend/config"
 	"log"
 	"os"
 )

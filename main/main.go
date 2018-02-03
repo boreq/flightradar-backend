@@ -4,7 +4,7 @@ package main
 import (
 	"fmt"
 	"github.com/boreq/guinea"
-	"github.com/boreq/flightradar/main/commands"
+	"github.com/boreq/flightradar-backend/main/commands"
 	"os"
 )
 

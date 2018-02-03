@@ -1,7 +1,7 @@
 package aggregator
 
 import (
-	"github.com/boreq/flightradar/storage"
+	"github.com/boreq/flightradar-backend/storage"
 )
 
 type Aggregator interface {

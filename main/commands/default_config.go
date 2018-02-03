@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/boreq/guinea"
-	"github.com/boreq/flightradar/config"
+	"github.com/boreq/flightradar-backend/config"
 )
 
 var defaultConfigCmd = guinea.Command{

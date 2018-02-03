@@ -3,7 +3,7 @@ package sources
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/boreq/flightradar/storage"
+	"github.com/boreq/flightradar-backend/storage"
 	"net/http"
 	"os"
 	"strconv"

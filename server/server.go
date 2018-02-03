@@ -1,9 +1,9 @@
 package server
 
 import (
-	"github.com/boreq/flightradar/aggregator"
-	"github.com/boreq/flightradar/server/api"
-	"github.com/boreq/flightradar/storage"
+	"github.com/boreq/flightradar-backend/aggregator"
+	"github.com/boreq/flightradar-backend/server/api"
+	"github.com/boreq/flightradar-backend/storage"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 )

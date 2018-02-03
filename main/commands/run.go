@@ -1,11 +1,11 @@
 package commands
 
 import (
-	"github.com/boreq/flightradar/aggregator"
-	"github.com/boreq/flightradar/config"
-	"github.com/boreq/flightradar/server"
-	"github.com/boreq/flightradar/sources"
-	"github.com/boreq/flightradar/storage/flatfiles"
+	"github.com/boreq/flightradar-backend/aggregator"
+	"github.com/boreq/flightradar-backend/config"
+	"github.com/boreq/flightradar-backend/server"
+	"github.com/boreq/flightradar-backend/sources"
+	"github.com/boreq/flightradar-backend/storage/flatfiles"
 	"github.com/boreq/guinea"
 )
 
