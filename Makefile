@@ -1,7 +1,7 @@
 VERSION = `git rev-parse HEAD`
 DATE = `date --iso-8601=seconds`
-LDFLAGS =  -X github.com/boreq/flightradar/main/commands.buildCommit=$(VERSION)
-LDFLAGS += -X github.com/boreq/flightradar/main/commands.buildDate=$(DATE)
+LDFLAGS =  -X github.com/boreq/flightradar-backend/main/commands.buildCommit=$(VERSION)
+LDFLAGS += -X github.com/boreq/flightradar-backend/main/commands.buildDate=$(DATE)
 
 all: build
 
@@ -10,13 +10,13 @@ static:
 
 build:
 	mkdir -p build
-	go build -ldflags "$(LDFLAGS)" -o ./build/flightradar ./main
+	go build -ldflags "$(LDFLAGS)" -o ./build/flightradar-backend ./main
 
 run:
 	./main/main
 
 doc:
-	@echo "http://localhost:6060/pkg/github.com/boreq/flightradar/"
+	@echo "http://localhost:6060/pkg/github.com/boreq/flightradar-backend/"
 	godoc -http=:6060
 
 test:
