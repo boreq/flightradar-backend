@@ -6,5 +6,5 @@ import (
 
 type Aggregator interface {
 	GetChannel() chan<- storage.Data
-	Newest()
+	Newest() map[string]storage.Data
 }
