@@ -9,6 +9,7 @@ import (
 )
 
 var InternalServerError = NewError(500, "Internal server error.")
+var BadRequest = NewError(400, "Bad request.")
 
 type Error interface {
 	GetCode() int

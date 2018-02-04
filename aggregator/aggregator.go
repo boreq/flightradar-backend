@@ -105,3 +105,7 @@ func (a *aggregator) Newest() map[string]storage.Data {
 func (a *aggregator) Retrieve(icao string) (<-chan storage.StoredData, error) {
 	return a.storage.Retrieve(icao)
 }
+
+func (a *aggregator) RetrieveTimerange(from time.Time, to time.Time) (<-chan storage.StoredData, error) {
+	return a.storage.RetrieveTimerange(from, to)
+}

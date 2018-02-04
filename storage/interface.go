@@ -6,6 +6,7 @@ import (
 
 type ReadStorage interface {
 	Retrieve(icao string) (<-chan StoredData, error)
+	RetrieveTimerange(from time.Time, to time.Time) (<-chan StoredData, error)
 }
 
 type WriteStorage interface {

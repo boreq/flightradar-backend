@@ -6,7 +6,9 @@ import (
 	"github.com/boreq/flightradar-backend/storage"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type handler struct {
@@ -17,6 +19,43 @@ func (h *handler) planes(r *http.Request, _ httprouter.Params) (interface{}, api
 	var response []storage.Data
 
 	for _, value := range h.aggr.Newest() {
+		response = append(response, value)
+	}
+
+	return response, nil
+}
+
+func (h *handler) timeRange(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
+	var response []storage.StoredData
+
+	fromText, ok := r.URL.Query()["from"]
+	if !ok {
+		return nil, api.BadRequest
+	}
+	toText, ok := r.URL.Query()["to"]
+	if !ok {
+		return nil, api.BadRequest
+	}
+
+	fromInt, err := strconv.ParseInt(fromText[0], 10, 64)
+	if err != nil {
+		return nil, api.BadRequest
+	}
+
+	toInt, err := strconv.ParseInt(toText[0], 10, 64)
+	if err != nil {
+		return nil, api.BadRequest
+	}
+
+	from := time.Unix(fromInt, 0)
+	to := time.Unix(toInt, 0)
+
+	c, err := h.aggr.RetrieveTimerange(from, to)
+	if err != nil {
+		return nil, api.InternalServerError
+	}
+
+	for value := range c {
 		response = append(response, value)
 	}
 
@@ -48,6 +87,7 @@ func Serve(aggr aggregator.Aggregator, address string) error {
 	router := httprouter.New()
 	router.GET("/planes.json", api.Wrap(h.planes))
 	router.GET("/plane/:icao", api.Wrap(h.plane))
+	router.GET("/range.json", api.Wrap(h.timeRange))
 
 	return http.ListenAndServe(address, router)
 }

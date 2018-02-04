@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/boreq/flightradar-backend/logging"
 	"github.com/boreq/flightradar-backend/storage"
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -71,7 +72,11 @@ func (f *flatfiles) getFileForPlane(icao string) (string, error) {
 	if icaoRegex.ReplaceAllString(icao, "") != icao {
 		return "", errors.New("ICAO must be alphanumeric")
 	}
-	return path.Join(f.directory, "planes", icao), nil
+	return path.Join(f.getPlaneDirectory(), icao), nil
+}
+
+func (f *flatfiles) getPlaneDirectory() string {
+	return path.Join(f.directory, "planes")
 }
 
 func (f *flatfiles) Retrieve(icao string) (<-chan storage.StoredData, error) {
@@ -79,6 +84,40 @@ func (f *flatfiles) Retrieve(icao string) (<-chan storage.StoredData, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return readStoredData(filepath)
+}
+
+func (f *flatfiles) RetrieveTimerange(from time.Time, to time.Time) (<-chan storage.StoredData, error) {
+	files, err := ioutil.ReadDir(f.getPlaneDirectory())
+	if err != nil {
+		return nil, err
+	}
+
+	c := make(chan storage.StoredData)
+	go func() {
+		defer close(c)
+
+		for _, fileInfo := range files {
+			filepath := path.Join(f.getPlaneDirectory(), fileInfo.Name())
+			dataC, err := readStoredData(filepath)
+			if err != nil {
+				log.Printf("Error: %s", err)
+				continue
+			}
+
+			for storedData := range dataC {
+				if storedData.Time.Before(to) && storedData.Time.After(from) {
+					c <- storedData
+				}
+			}
+		}
+	}()
+
+	return c, nil
+}
+
+func readStoredData(filepath string) (<-chan storage.StoredData, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
@@ -92,18 +131,16 @@ func (f *flatfiles) Retrieve(icao string) (<-chan storage.StoredData, error) {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			var storedData storage.StoredData
-			print(scanner.Text())
-			print("\n")
 			err := json.Unmarshal(scanner.Bytes(), &storedData)
 			if err != nil {
-				log.Printf("Error for %s: %s", icao, err)
+				log.Printf("Error: %s", err)
 				continue
 			}
 			c <- storedData
 		}
 
 		if err := scanner.Err(); err != nil {
-			log.Printf("Error for %s: %s", icao, err)
+			log.Printf("Error: %s", err)
 		}
 	}()
 	return c, nil
