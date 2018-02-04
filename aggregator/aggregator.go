@@ -19,12 +19,12 @@ func New(s storage.Storage) Aggregator {
 }
 
 // storeEvery specifies how often the data is permanently stored.
-const storeEvery = 15 * time.Second
+const storeEvery = 5 * time.Second
 
 // dataTimeoutThreshold specifies at which point the cached newest data is
 // considered outdated - how long plane's data can be saved or retrieved
 // after it disappears.
-const dataTimeoutThreshold = 30 * time.Second
+const dataTimeoutThreshold = 15 * time.Second
 
 type dataWithTime struct {
 	storage.Data
