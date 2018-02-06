@@ -9,10 +9,10 @@ import (
 
 func New(s storage.Storage) Aggregator {
 	rv := &aggregator{
-		storage:    s,
-		data:       make(chan storage.Data),
-		recent:     make(map[string]dataWithTime),
-		storeTimes: make(map[string]time.Time),
+		storage: s,
+		data:    make(chan storage.Data),
+		recent:  make(map[string]storage.StoredData),
+		stored:  make(map[string]storage.StoredData),
 	}
 	go rv.run()
 	return rv
@@ -26,16 +26,16 @@ const storeEvery = 5 * time.Second
 // after it disappears.
 const dataTimeoutThreshold = 15 * time.Second
 
-type dataWithTime struct {
-	storage.Data
-	t time.Time
-}
+// storedDataTimeoutThreshold specifies how long the stored data points are
+// held here for reference - this makes sure that two data points with the
+// same position don't get saved for the given aricraft twice in the row.
+const storedDataTimeoutThreshold = 5 * time.Minute
 
 type aggregator struct {
-	storage    storage.Storage
-	data       chan storage.Data
-	recent     map[string]dataWithTime
-	storeTimes map[string]time.Time
+	storage storage.Storage
+	data    chan storage.Data
+	recent  map[string]storage.StoredData
+	stored  map[string]storage.StoredData
 }
 
 func (a *aggregator) GetChannel() chan<- storage.Data {
@@ -57,38 +57,42 @@ func (a *aggregator) run() {
 }
 
 func (a *aggregator) process(d storage.Data) {
-	// It is impossible that this data is missing when using
-	// ADS-B.
+	// I think it is impossible that this data is missing when using ADS-B,
+	// but check just to be sure.
 	if d.ICAO == nil {
 		return
 	}
 
-	// Store the live data temporarily
-	a.recent[*d.ICAO] = dataWithTime{d, time.Now()}
+	storedData := storage.StoredData{Data: d, Time: time.Now()}
+	a.recent[*d.ICAO] = storedData
 
 	// If the position is set record the data permanently every couple of
-	// seconds
+	// seconds but only if the position doesn't duplicate the already stored
+	// data.
 	if d.Latitude != nil && d.Longitude != nil {
-		t, ok := a.storeTimes[*d.ICAO]
-		if !ok || time.Since(t) > storeEvery {
-			if err := a.storage.Store(d); err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err)
+		lastStoredData, ok := a.stored[*d.ICAO]
+		if !ok || time.Since(lastStoredData.Time) > storeEvery {
+			if !ok || (storedData.Data.Latitude != lastStoredData.Data.Latitude &&
+				storedData.Data.Longitude != lastStoredData.Data.Longitude) {
+				if err := a.storage.Store(storedData.Data); err != nil {
+					fmt.Fprintf(os.Stderr, "%s\n", err)
+				}
+				a.stored[*d.ICAO] = storedData
 			}
-			a.storeTimes[*d.ICAO] = time.Now()
 		}
 	}
 }
 
 func (a *aggregator) cleanup() {
 	for key, value := range a.recent {
-		if time.Since(value.t) > dataTimeoutThreshold {
+		if time.Since(value.Time) > dataTimeoutThreshold {
 			delete(a.recent, key)
 		}
 	}
 
-	for key, value := range a.storeTimes {
-		if time.Since(value) > storeEvery {
-			delete(a.storeTimes, key)
+	for key, value := range a.stored {
+		if time.Since(value.Time) > storedDataTimeoutThreshold {
+			delete(a.stored, key)
 		}
 	}
 
