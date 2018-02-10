@@ -20,6 +20,7 @@ var MainCmd = guinea.Command{
 	Subcommands: map[string]*guinea.Command{
 		"run":            &runCmd,
 		"default_config": &defaultConfigCmd,
+		"create_tables":  &createDbCmd,
 	},
 	ShortDescription: "SDR plane tracking software",
 	Description:      "This software records plane tracking data collected by SDR radios.",

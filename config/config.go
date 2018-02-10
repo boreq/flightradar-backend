@@ -10,7 +10,7 @@ type ConfigStruct struct {
 	Debug           bool
 	ServeAddress    string
 	Dump1090Address string
-	DataDirectory   string
+	DatabaseFile    string
 }
 
 // Config points to the current config struct used by the other parts of the
@@ -23,7 +23,7 @@ func Default() *ConfigStruct {
 		Debug:           false,
 		ServeAddress:    "127.0.0.1:8118",
 		Dump1090Address: "127.0.0.1:8080",
-		DataDirectory:   "data",
+		DatabaseFile:    "/tmp/database.sqlite3",
 	}
 	return conf
 }

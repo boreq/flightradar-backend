@@ -10,7 +10,7 @@ type ReadStorage interface {
 }
 
 type WriteStorage interface {
-	Store(data Data) error
+	Store(data StoredData) error
 }
 
 type Storage interface {
@@ -19,7 +19,7 @@ type Storage interface {
 }
 
 type Data struct {
-	ICAO            *string  `json:"icao"`
+	Icao            *string  `json:"icao"`
 	FlightNumber    *string  `json:"flight_number"`
 	TransponderCode *int     `json:"transponder_code"`
 	Altitude        *int     `json:"altitude"`

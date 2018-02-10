@@ -59,25 +59,25 @@ func (a *aggregator) run() {
 func (a *aggregator) process(d storage.Data) {
 	// I think it is impossible that this data is missing when using ADS-B,
 	// but check just to be sure.
-	if d.ICAO == nil {
+	if d.Icao == nil {
 		return
 	}
 
 	storedData := storage.StoredData{Data: d, Time: time.Now()}
-	a.recent[*d.ICAO] = storedData
+	a.recent[*d.Icao] = storedData
 
 	// If the position is set record the data permanently every couple of
 	// seconds but only if the position doesn't duplicate the already stored
 	// data.
 	if d.Latitude != nil && d.Longitude != nil {
-		lastStoredData, ok := a.stored[*d.ICAO]
+		lastStoredData, ok := a.stored[*d.Icao]
 		if !ok || time.Since(lastStoredData.Time) > storeEvery {
 			if !ok || (storedData.Data.Latitude != lastStoredData.Data.Latitude &&
 				storedData.Data.Longitude != lastStoredData.Data.Longitude) {
-				if err := a.storage.Store(storedData.Data); err != nil {
+				if err := a.storage.Store(storedData); err != nil {
 					fmt.Fprintf(os.Stderr, "%s\n", err)
 				}
-				a.stored[*d.ICAO] = storedData
+				a.stored[*d.Icao] = storedData
 			}
 		}
 	}

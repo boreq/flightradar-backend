@@ -46,7 +46,7 @@ func NewDump1090(address string, dataChan chan<- storage.Data) error {
 				if data.Seen < DataAgeThreshold {
 					var resultData storage.Data
 					if data.ICAO != "" {
-						resultData.ICAO = &data.ICAO
+						resultData.Icao = &data.ICAO
 					}
 					if data.FlightNumber != "" {
 						trim := strings.TrimSpace(data.FlightNumber)

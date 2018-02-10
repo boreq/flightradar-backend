@@ -3,9 +3,10 @@ package commands
 import (
 	"github.com/boreq/flightradar-backend/aggregator"
 	"github.com/boreq/flightradar-backend/config"
+	"github.com/boreq/flightradar-backend/database"
 	"github.com/boreq/flightradar-backend/server"
 	"github.com/boreq/flightradar-backend/sources"
-	"github.com/boreq/flightradar-backend/storage/flatfiles"
+	"github.com/boreq/flightradar-backend/storage/sqlite3"
 	"github.com/boreq/guinea"
 )
 
@@ -23,8 +24,12 @@ func runRun(c guinea.Context) error {
 		return err
 	}
 
+	if err := database.Init(database.SQLite3, config.Config.DatabaseFile); err != nil {
+		return err
+	}
+
 	// Run the data collection
-	storage := flatfiles.New(config.Config.DataDirectory)
+	storage := sqlite3.New()
 	aggr := aggregator.New(storage)
 	if err := sources.NewDump1090(config.Config.Dump1090Address, aggr.GetChannel()); err != nil {
 		return err
