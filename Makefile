@@ -12,6 +12,15 @@ build:
 	mkdir -p build
 	go build -ldflags "$(LDFLAGS)" -o ./build/flightradar-backend ./main
 
+build-rpi:
+	mkdir -p build-rpi
+	CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm go build -ldflags "$(LDFLAGS)" -o ./build-rpi/flightradar-backend ./main
+
+build-xgo:
+	mkdir -p build-xgo
+	cd build-xgo; xgo ../main
+	#CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm go build -ldflags "$(LDFLAGS)" -o ./build-rpi/flightradar-backend ./main
+
 run:
 	./main/main
 
@@ -33,5 +42,7 @@ bench:
 
 clean:
 	rm -rf ./build
+	rm -rf ./build-rpi
+	rm -rf ./build-xgo
 
-.PHONY: all build run doc test test-verbose test-short bench clean
+.PHONY: all build build-rpi build-xgo run doc test test-verbose test-short bench clean

@@ -2,10 +2,13 @@ package aggregator
 
 import (
 	"fmt"
+	"github.com/boreq/flightradar-backend/logging"
 	"github.com/boreq/flightradar-backend/storage"
 	"os"
 	"time"
 )
+
+var log = logging.GetLogger("aggregator")
 
 func New(s storage.Storage) Aggregator {
 	rv := &aggregator{
@@ -28,7 +31,7 @@ const dataTimeoutThreshold = 15 * time.Second
 
 // storedDataTimeoutThreshold specifies how long the stored data points are
 // held here for reference - this makes sure that two data points with the
-// same position don't get saved for the given aricraft twice in the row.
+// same position don't get saved for the given aircraft twice in the row.
 const storedDataTimeoutThreshold = 5 * time.Minute
 
 type aggregator struct {
@@ -106,10 +109,14 @@ func (a *aggregator) Newest() map[string]storage.Data {
 	return rv
 }
 
-func (a *aggregator) Retrieve(icao string) (<-chan storage.StoredData, error) {
+func (a *aggregator) Retrieve(icao string) ([]storage.StoredData, error) {
 	return a.storage.Retrieve(icao)
 }
 
-func (a *aggregator) RetrieveTimerange(from time.Time, to time.Time) (<-chan storage.StoredData, error) {
+func (a *aggregator) RetrieveTimerange(from time.Time, to time.Time) ([]storage.StoredData, error) {
 	return a.storage.RetrieveTimerange(from, to)
+}
+
+func (a *aggregator) RetrieveAll() ([]storage.StoredData, error) {
+	return a.storage.RetrieveAll()
 }

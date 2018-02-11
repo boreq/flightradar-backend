@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/boreq/flightradar-backend/aggregator"
 	"github.com/boreq/flightradar-backend/server/api"
 	"github.com/boreq/flightradar-backend/storage"
@@ -26,7 +27,7 @@ func (h *handler) planes(r *http.Request, _ httprouter.Params) (interface{}, api
 }
 
 func (h *handler) timeRange(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
-	var response []storage.StoredData
+	now := time.Now()
 
 	fromText, ok := r.URL.Query()["from"]
 	if !ok {
@@ -50,32 +51,24 @@ func (h *handler) timeRange(r *http.Request, _ httprouter.Params) (interface{}, 
 	from := time.Unix(fromInt, 0)
 	to := time.Unix(toInt, 0)
 
-	c, err := h.aggr.RetrieveTimerange(from, to)
+	response, err := h.aggr.RetrieveTimerange(from, to)
 	if err != nil {
 		return nil, api.InternalServerError
 	}
 
-	for value := range c {
-		response = append(response, value)
-	}
-
+	fmt.Printf("Total: %f\n", time.Since(now).Seconds())
 	return response, nil
 }
 
 func (h *handler) plane(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
-	var response []storage.StoredData
-
 	icao := ps.ByName("icao")
 	if strings.HasSuffix(icao, ".json") {
 		icao = icao[:len(icao)-len(".json")]
 	}
 
-	c, err := h.aggr.Retrieve(icao)
+	response, err := h.aggr.Retrieve(icao)
 	if err != nil {
 		return nil, api.InternalServerError
-	}
-	for value := range c {
-		response = append(response, value)
 	}
 
 	return response, nil
