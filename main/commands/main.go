@@ -20,7 +20,6 @@ var MainCmd = guinea.Command{
 	Subcommands: map[string]*guinea.Command{
 		"run":            &runCmd,
 		"default_config": &defaultConfigCmd,
-		"create_tables":  &createDbCmd,
 		"export":         &exportCmd,
 		"import":         &importCmd,
 	},
