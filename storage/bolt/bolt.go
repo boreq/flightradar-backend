@@ -18,6 +18,8 @@ var generalKey = []byte("all")
 // Key got the top level bucket which contains plane specific buckets.
 var planesKey = []byte("planes")
 
+// The RFC3339 format provided in the standard library is not sortable due to
+// the verying number of nanosecond digits.
 const rfc3339NanoSortable = "2006-01-02T15:04:05.000000000Z07:00"
 
 func New(filepath string) (storage.Storage, error) {
