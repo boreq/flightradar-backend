@@ -20,14 +20,14 @@ type Storage interface {
 }
 
 type Data struct {
-	Icao            *string  `json:"icao"`
-	FlightNumber    *string  `json:"flight_number"`
-	TransponderCode *int     `json:"transponder_code"`
-	Altitude        *int     `json:"altitude"`
-	Speed           *int     `json:"speed"`
-	Heading         *int     `json:"heading"`
-	Latitude        *float64 `json:"latitude"`
-	Longitude       *float64 `json:"longitude"`
+	Icao            *string  `json:"icao,omitempty"`
+	FlightNumber    *string  `json:"flight_number,omitempty"`
+	TransponderCode *int     `json:"transponder_code,omitempty"`
+	Altitude        *int     `json:"altitude,omitempty"`
+	Speed           *int     `json:"speed,omitempty"`
+	Heading         *int     `json:"heading,omitempty"`
+	Latitude        *float64 `json:"latitude,omitempty"`
+	Longitude       *float64 `json:"longitude,omitempty"`
 }
 
 type StoredData struct {
