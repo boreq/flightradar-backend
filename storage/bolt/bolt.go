@@ -56,19 +56,6 @@ type blt struct {
 	db *bolt.DB
 }
 
-type storedDataOut struct {
-	Id              int
-	Icao            *string
-	FlightNumber    *string
-	TransponderCode *int
-	Altitude        *int
-	Speed           *int
-	Heading         *int
-	Latitude        *float64
-	Longitude       *float64
-	Time            int64
-}
-
 func (b *blt) Store(data storage.StoredData) error {
 	if data.Data.Icao == nil || *data.Data.Icao == "" {
 		return errors.New("ICAO can't be empty!")
