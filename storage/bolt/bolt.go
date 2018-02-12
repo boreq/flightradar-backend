@@ -111,8 +111,6 @@ func (b *blt) Store(data storage.StoredData) error {
 func (b *blt) Retrieve(icao string) ([]storage.StoredData, error) {
 	var rv []storage.StoredData
 
-	log.Debugf("Returning data for %s", icao)
-
 	err := b.db.View(func(tx *bolt.Tx) error {
 		planesB := tx.Bucket(planesKey)
 		if planesB == nil {
@@ -148,8 +146,6 @@ func (b *blt) RetrieveTimerange(from time.Time, to time.Time) ([]storage.StoredD
 		if generalB == nil {
 			return errors.New("General bucket does not exist!")
 		}
-
-		log.Debugf("General bucket keys %d", generalB.Stats().KeyN)
 
 		c := generalB.Cursor()
 		min := timeToKey(from)
