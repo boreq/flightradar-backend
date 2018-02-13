@@ -99,6 +99,11 @@ func (b *blt) Store(data storage.StoredData) error {
 func (b *blt) Retrieve(icao string) ([]storage.StoredData, error) {
 	var rv []storage.StoredData
 
+	t := time.Now()
+	defer func() {
+		log.Debugf("Retrieve: %f seconds", time.Since(t).Seconds())
+	}()
+
 	err := b.db.View(func(tx *bolt.Tx) error {
 		planesB := tx.Bucket(planesKey)
 		if planesB == nil {
@@ -127,6 +132,11 @@ func (b *blt) Retrieve(icao string) ([]storage.StoredData, error) {
 
 func (b *blt) RetrieveTimerange(from time.Time, to time.Time) ([]storage.StoredData, error) {
 	var rv []storage.StoredData
+
+	t := time.Now()
+	defer func() {
+		log.Debugf("Retrieve timerange: %f seconds", time.Since(t).Seconds())
+	}()
 
 	err := b.db.View(func(tx *bolt.Tx) error {
 		generalB := tx.Bucket(generalKey)
@@ -157,6 +167,11 @@ func (b *blt) RetrieveTimerange(from time.Time, to time.Time) ([]storage.StoredD
 
 func (b *blt) RetrieveAll() ([]storage.StoredData, error) {
 	var rv []storage.StoredData
+
+	t := time.Now()
+	defer func() {
+		log.Debugf("Retrieve all: %f seconds", time.Since(t).Seconds())
+	}()
 
 	err := b.db.View(func(tx *bolt.Tx) error {
 		generalB := tx.Bucket(generalKey)

@@ -7,10 +7,12 @@ import (
 )
 
 type ConfigStruct struct {
-	Debug           bool
-	ServeAddress    string
-	Dump1090Address string
-	DatabaseFile    string
+	Debug            bool
+	ServeAddress     string
+	Dump1090Address  string
+	DatabaseFile     string
+	StationLatitude  float64
+	StationLongitude float64
 }
 
 // Config points to the current config struct used by the other parts of the
@@ -20,10 +22,12 @@ var Config *ConfigStruct = Default()
 // Default returns the default config.
 func Default() *ConfigStruct {
 	conf := &ConfigStruct{
-		Debug:           false,
-		ServeAddress:    "127.0.0.1:8118",
-		Dump1090Address: "127.0.0.1:8080",
-		DatabaseFile:    "/tmp/database.sqlite3",
+		Debug:            false,
+		ServeAddress:     "127.0.0.1:8118",
+		Dump1090Address:  "127.0.0.1:8080",
+		DatabaseFile:     "/tmp/database.bolt",
+		StationLongitude: 19.97605,
+		StationLatitude:  50.08179,
 	}
 	return conf
 }
