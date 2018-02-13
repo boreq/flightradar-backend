@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+message Data {
+    optional string Icao = 1;
+    optional string FlightNumber = 2;
+    optional int32 TransponderCode = 3;
+    optional int32 Altitude = 4;
+    optional int32 Speed = 5;
+    optional int32 Heading = 6;
+    optional double Latitude = 7;
+    optional double Longitude = 8;
+}
+
+message StoredData {
+    required int64 Time = 1;
+    required Data Data = 2;
+}

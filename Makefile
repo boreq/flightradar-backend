@@ -16,6 +16,9 @@ build-rpi:
 run:
 	./main/main
 
+proto:
+	protoc --proto_path="storage/bolt/messages" --go_out="storage/bolt/messages" storage/bolt/messages/messages.proto
+
 doc:
 	@echo "http://localhost:6060/pkg/github.com/boreq/flightradar-backend/"
 	godoc -http=:6060
@@ -36,4 +39,4 @@ clean:
 	rm -rf ./build
 	rm -rf ./build-rpi
 
-.PHONY: all build build-rpi run doc test test-verbose test-short bench clean
+.PHONY: all build build-rpi proto run doc test test-verbose test-short bench clean

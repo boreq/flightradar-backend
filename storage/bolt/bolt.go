@@ -2,11 +2,12 @@ package bolt
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"github.com/boltdb/bolt"
 	"github.com/boreq/flightradar-backend/logging"
 	"github.com/boreq/flightradar-backend/storage"
+	"github.com/boreq/flightradar-backend/storage/bolt/messages"
+	"github.com/golang/protobuf/proto"
 	"time"
 )
 
@@ -61,7 +62,7 @@ func (b *blt) Store(data storage.StoredData) error {
 		return errors.New("ICAO can't be empty!")
 	}
 
-	j, err := json.Marshal(data)
+	j, err := encode(data)
 	if err != nil {
 		return err
 	}
@@ -107,8 +108,7 @@ func (b *blt) Retrieve(icao string) ([]storage.StoredData, error) {
 		planeB := planesB.Bucket([]byte(icao))
 		if planeB != nil {
 			planeB.ForEach(func(k, v []byte) error {
-				var storedData storage.StoredData
-				err := json.Unmarshal(v, &storedData)
+				storedData, err := decode(v)
 				if err != nil {
 					return err
 				}
@@ -139,8 +139,7 @@ func (b *blt) RetrieveTimerange(from time.Time, to time.Time) ([]storage.StoredD
 		max := timeToKey(to)
 
 		for k, v := c.Seek(min); k != nil && bytes.Compare(k[0:30], max) <= 0; k, v = c.Next() {
-			var storedData storage.StoredData
-			err := json.Unmarshal(v, &storedData)
+			storedData, err := decode(v)
 			if err != nil {
 				return err
 			}
@@ -166,8 +165,7 @@ func (b *blt) RetrieveAll() ([]storage.StoredData, error) {
 		}
 
 		generalB.ForEach(func(k, v []byte) error {
-			var storedData storage.StoredData
-			err := json.Unmarshal(v, &storedData)
+			storedData, err := decode(v)
 			if err != nil {
 				return err
 			}
@@ -192,4 +190,67 @@ func timeToKey(t time.Time) []byte {
 
 func timeAndIcaoToKey(t time.Time, icao string) []byte {
 	return append(timeToKey(t), []byte(icao)...)
+}
+
+func encode(storedData storage.StoredData) ([]byte, error) {
+	protoStoredData := &messages.StoredData{
+		Time: new(int64),
+		Data: &messages.Data{
+			Icao:         storedData.Data.Icao,
+			FlightNumber: storedData.Data.FlightNumber,
+			Latitude:     storedData.Data.Latitude,
+			Longitude:    storedData.Data.Longitude,
+		},
+	}
+	*protoStoredData.Time = storedData.Time.Unix()
+	if storedData.Data.TransponderCode != nil {
+		transponderCode := int32(*storedData.Data.TransponderCode)
+		protoStoredData.Data.TransponderCode = &transponderCode
+	}
+	if storedData.Data.Altitude != nil {
+		altitude := int32(*storedData.Data.Altitude)
+		protoStoredData.Data.Altitude = &altitude
+	}
+	if storedData.Data.Speed != nil {
+		speed := int32(*storedData.Data.Speed)
+		protoStoredData.Data.Speed = &speed
+	}
+	if storedData.Data.Heading != nil {
+		heading := int32(*storedData.Data.Heading)
+		protoStoredData.Data.Heading = &heading
+	}
+	return proto.Marshal(protoStoredData)
+}
+
+func decode(data []byte) (storage.StoredData, error) {
+	var protoStoredData messages.StoredData
+	err := proto.Unmarshal(data, &protoStoredData)
+
+	rv := storage.StoredData{
+		Time: time.Unix(*protoStoredData.Time, 0),
+		Data: storage.Data{
+			Icao:         protoStoredData.Data.Icao,
+			FlightNumber: protoStoredData.Data.FlightNumber,
+			Latitude:     protoStoredData.Data.Latitude,
+			Longitude:    protoStoredData.Data.Longitude,
+		},
+	}
+	if protoStoredData.Data.TransponderCode != nil {
+		transponderCode := int(*protoStoredData.Data.TransponderCode)
+		rv.Data.TransponderCode = &transponderCode
+	}
+	if protoStoredData.Data.Altitude != nil {
+		altitude := int(*protoStoredData.Data.Altitude)
+		rv.Data.Altitude = &altitude
+	}
+	if protoStoredData.Data.Speed != nil {
+		speed := int(*protoStoredData.Data.Speed)
+		rv.Data.Speed = &speed
+	}
+	if protoStoredData.Data.Heading != nil {
+		heading := int(*protoStoredData.Data.Heading)
+		rv.Data.Heading = &heading
+	}
+
+	return rv, err
 }
