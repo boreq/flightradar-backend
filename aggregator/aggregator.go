@@ -75,8 +75,8 @@ func (a *aggregator) process(d storage.Data) {
 	if d.Latitude != nil && d.Longitude != nil {
 		lastStoredData, ok := a.stored[*d.Icao]
 		if !ok || time.Since(lastStoredData.Time) > storeEvery {
-			if !ok || (storedData.Data.Latitude != lastStoredData.Data.Latitude &&
-				storedData.Data.Longitude != lastStoredData.Data.Longitude) {
+			if !ok || (*storedData.Data.Latitude != *lastStoredData.Data.Latitude &&
+				*storedData.Data.Longitude != *lastStoredData.Data.Longitude) {
 				if err := a.storage.Store(storedData); err != nil {
 					fmt.Fprintf(os.Stderr, "%s\n", err)
 				}
