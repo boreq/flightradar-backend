@@ -21,7 +21,7 @@ type handler struct {
 }
 
 func (h *handler) planes(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
-	var response []storage.Data
+	var response []storage.Data = make([]storage.Data, 0)
 
 	for _, value := range h.aggr.Newest() {
 		response = append(response, value)
