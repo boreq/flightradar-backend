@@ -11,7 +11,7 @@ build:
 
 build-rpi:
 	mkdir -p build-rpi
-	CGO_ENABLED=1 CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm go build -ldflags "$(LDFLAGS)" -o ./build-rpi/flightradar-backend ./main
+	GOOS=linux GOARCH=arm go build -ldflags "$(LDFLAGS)" -o ./build-rpi/flightradar-backend ./main
 
 run:
 	./main/main
