@@ -9,6 +9,7 @@ import (
 	"github.com/boreq/flightradar-backend/storage"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,8 +17,15 @@ import (
 
 var log = logging.GetLogger("server")
 
+type stats struct {
+	DataPointsNumber int `json:"data_points_number"`
+	PlanesNumber     int `json:"planes_number"`
+	FlightsNumber    int `json:"flights_number"`
+}
+
 type handler struct {
-	aggr aggregator.Aggregator
+	aggr       aggregator.Aggregator
+	statsCache map[string]stats
 }
 
 func (h *handler) planes(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
@@ -142,14 +150,103 @@ func (h *handler) plane(r *http.Request, ps httprouter.Params) (interface{}, api
 	return response, nil
 }
 
+type statsResponse struct {
+	Date string `json:"date"`
+	Data stats  `json:"data"`
+}
+
+func (h *handler) stats(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
+	response := make([]statsResponse, 0)
+	for k, v := range h.statsCache {
+		response = append(response, statsResponse{k, v})
+	}
+	sort.Slice(response, func(i, j int) bool { return response[i].Date < response[j].Date })
+	return response, nil
+}
+
+const statsCacheDateLayout = "2006-01-02"
+const statsDataPoints = 30 // number of days stats are generated for
+const statsUpdateEvery = 60 * time.Minute
+
+func (h *handler) runStats() {
+	h.updateStats()
+
+	ticker := time.NewTicker(statsUpdateEvery)
+	for range ticker.C {
+		h.updateStats()
+	}
+}
+
+func (h *handler) updateStats() {
+	// Cleanup
+	for k, _ := range h.statsCache {
+		t, err := time.Parse(statsCacheDateLayout, k)
+		if err != nil {
+			log.Printf("updateStats cleanup error: %s", err)
+			delete(h.statsCache, k)
+		}
+		if time.Since(t) > statsDataPoints*24*time.Hour {
+			log.Debugf("updateStats cleanup: %s", k)
+			delete(h.statsCache, k)
+		}
+	}
+
+	// Load new
+	for i := 0; i < statsDataPoints; i++ {
+		start := time.Now().UTC().AddDate(0, 0, -i).Truncate(24 * time.Hour)
+		end := start.AddDate(0, 0, 1)
+		key := start.Format(statsCacheDateLayout)
+		_, ok := h.statsCache[key]
+		if !ok || i <= 1 {
+			log.Debugf("updateStats loading: %s", key)
+			stats, err := h.getStatsForRange(start, end)
+			if err != nil {
+				log.Printf("updateStats error: %s", err)
+				continue
+			}
+			h.statsCache[key] = stats
+		}
+	}
+}
+
+func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
+	rv := stats{}
+
+	data, err := h.aggr.RetrieveTimerange(from, to)
+	if err != nil {
+		return rv, err
+	}
+
+	uniquePlanes := make(map[string]bool)
+	uniqueFlights := make(map[string]bool)
+	for _, storedData := range data {
+		rv.DataPointsNumber++
+		if storedData.Data.Icao != nil {
+			uniquePlanes[*storedData.Data.Icao] = true
+		}
+		if storedData.Data.FlightNumber != nil {
+			uniqueFlights[*storedData.Data.FlightNumber] = true
+		}
+	}
+	rv.PlanesNumber = len(uniquePlanes)
+	rv.FlightsNumber = len(uniqueFlights)
+
+	return rv, nil
+}
+
 func Serve(aggr aggregator.Aggregator, address string) error {
-	h := &handler{aggr}
+	h := &handler{
+		aggr:       aggr,
+		statsCache: make(map[string]stats),
+	}
+	go h.runStats()
 
 	router := httprouter.New()
 	router.GET("/planes.json", api.Wrap(h.planes))
 	router.GET("/plane/:icao", api.Wrap(h.plane))
 	router.GET("/range.json", api.Wrap(h.timeRange))
 	router.GET("/polar.json", api.Wrap(h.polar))
+	router.GET("/stats.json", api.Wrap(h.stats))
 
 	return http.ListenAndServe(address, router)
 }
