@@ -8,6 +8,7 @@ import (
 	"github.com/boreq/flightradar-backend/storage"
 	"github.com/boreq/flightradar-backend/storage/bolt/messages"
 	"github.com/golang/protobuf/proto"
+	"io"
 	"time"
 )
 
@@ -23,7 +24,12 @@ var planesKey = []byte("planes")
 // the verying number of nanosecond digits.
 const rfc3339NanoSortable = "2006-01-02T15:04:05.000000000Z07:00"
 
-func New(filepath string) (storage.Storage, error) {
+type Bolt interface {
+	storage.Storage
+	io.Closer
+}
+
+func New(filepath string) (Bolt, error) {
 	// Open the database, create it if needed. Timeout ensures that the
 	// function will not block idefinietly.
 	db, err := bolt.Open(filepath, 0644, &bolt.Options{Timeout: 10 * time.Second})
@@ -195,6 +201,10 @@ func (b *blt) RetrieveAll() ([]storage.StoredData, error) {
 	}
 
 	return rv, nil
+}
+
+func (b *blt) Close() error {
+	return b.db.Close()
 }
 
 func timeToKey(t time.Time) []byte {

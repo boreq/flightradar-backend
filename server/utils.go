@@ -27,7 +27,7 @@ func bearing(lon1, lat1, lon2, lat2 float64) float64 {
 	return degrees(bearing)
 }
 
-// Calculates the distance in kilometers between two coordinates.
+// Distance calculates the distance in kilometers between two coordinates.
 func distance(lon1, lat1, lon2, lat2 float64) float64 {
 	lon1 = radians(lon1)
 	lat1 = radians(lat1)

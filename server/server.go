@@ -22,7 +22,7 @@ type handler struct {
 	statsCache map[string]stats
 }
 
-func (h *handler) planes(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
+func (h *handler) Planes(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
 	var response []storage.Data = make([]storage.Data, 0)
 
 	for _, value := range h.aggr.Newest() {
@@ -32,37 +32,22 @@ func (h *handler) planes(r *http.Request, _ httprouter.Params) (interface{}, api
 	return response, nil
 }
 
-func (h *handler) timeRange(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
-	now := time.Now()
-
-	fromText, ok := r.URL.Query()["from"]
-	if !ok {
-		return nil, api.BadRequest
-	}
-	toText, ok := r.URL.Query()["to"]
-	if !ok {
-		return nil, api.BadRequest
-	}
-
-	fromInt, err := strconv.ParseInt(fromText[0], 10, 64)
+func (h *handler) TimeRange(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
+	from, err := timestampParamToTime(r, "from")
 	if err != nil {
 		return nil, api.BadRequest
 	}
 
-	toInt, err := strconv.ParseInt(toText[0], 10, 64)
+	to, err := timestampParamToTime(r, "to")
 	if err != nil {
 		return nil, api.BadRequest
 	}
-
-	from := time.Unix(fromInt, 0)
-	to := time.Unix(toInt, 0)
 
 	response, err := h.aggr.RetrieveTimerange(from, to)
 	if err != nil {
 		return nil, api.InternalServerError
 	}
 
-	fmt.Printf("Time range total: %f\n", time.Since(now).Seconds())
 	return response, nil
 }
 
@@ -71,71 +56,30 @@ type polarResponse struct {
 	Distance float64            `json:"distance"`
 }
 
-func (h *handler) polar(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
+func (h *handler) Polar(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
 	now := time.Now()
+	defer func() { log.Debugf("Polar seconds: %f\n", time.Since(now).Seconds()) }()
 
-	fromText, ok := r.URL.Query()["from"]
-	if !ok {
-		return nil, api.BadRequest
-	}
-	toText, ok := r.URL.Query()["to"]
-	if !ok {
-		return nil, api.BadRequest
-	}
-
-	fromInt, err := strconv.ParseInt(fromText[0], 10, 64)
+	from, err := timestampParamToTime(r, "from")
 	if err != nil {
 		return nil, api.BadRequest
 	}
 
-	toInt, err := strconv.ParseInt(toText[0], 10, 64)
+	to, err := timestampParamToTime(r, "to")
 	if err != nil {
 		return nil, api.BadRequest
 	}
 
-	from := time.Unix(fromInt, 0)
-	to := time.Unix(toInt, 0)
+	log.Debugf("%s, %s", from, to)
 
 	data, err := h.aggr.RetrieveTimerange(from, to)
 	if err != nil {
 		return nil, api.InternalServerError
 	}
-
-	response := toPolar(data)
-
-	fmt.Printf("Polar seconds: %f\n", time.Since(now).Seconds())
-	return response, nil
+	return toPolar(data), nil
 }
 
-func toPolar(data []storage.StoredData) map[int]polarResponse {
-	rv := make(map[int]polarResponse)
-	for _, d := range data {
-		if d.Data.Longitude == nil || d.Data.Latitude == nil {
-			continue
-		}
-		bearing := bearing(
-			config.Config.StationLongitude,
-			config.Config.StationLatitude,
-			*d.Data.Longitude,
-			*d.Data.Latitude)
-		distance := distance(
-			config.Config.StationLongitude,
-			config.Config.StationLatitude,
-			*d.Data.Longitude,
-			*d.Data.Latitude)
-		bearing = bearing + 180
-		v, ok := rv[int(bearing)]
-		if !ok || v.Distance < distance {
-			rv[int(bearing)] = polarResponse{
-				Distance: distance,
-				Data:     d,
-			}
-		}
-	}
-	return rv
-}
-
-func (h *handler) plane(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
+func (h *handler) Plane(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
 	icao := ps.ByName("icao")
 	if strings.HasSuffix(icao, ".json") {
 		icao = icao[:len(icao)-len(".json")]
@@ -163,10 +107,9 @@ type statsResponse struct {
 	Data stats  `json:"data"`
 }
 
-func (h *handler) stats(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
+func (h *handler) Stats(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
 	response := make([]statsResponse, 0)
 	for k, v := range h.statsCache {
-		log.Printf("polar %s %+v", k, v)
 		response = append(response, statsResponse{k, v})
 	}
 	sort.Slice(response, func(i, j int) bool { return response[i].Date < response[j].Date })
@@ -247,7 +190,6 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	var distances []float64
 
 	polar := toPolar(data)
-	log.Printf("polar %d", len(polar))
 	for _, v := range polar {
 		sum += v.Distance
 		if v.Distance > max {
@@ -269,6 +211,46 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	return rv, nil
 }
 
+func timestampParamToTime(r *http.Request, name string) (time.Time, error) {
+	texts, ok := r.URL.Query()[name]
+	if !ok {
+		return time.Time{}, fmt.Errorf("Parameter %s missing", name)
+	}
+	timestamp, err := strconv.ParseInt(texts[0], 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(timestamp, 0), nil
+}
+
+func toPolar(data []storage.StoredData) map[int]polarResponse {
+	rv := make(map[int]polarResponse)
+	for _, d := range data {
+		if d.Data.Longitude == nil || d.Data.Latitude == nil {
+			continue
+		}
+		bearing := bearing(
+			config.Config.StationLongitude,
+			config.Config.StationLatitude,
+			*d.Data.Longitude,
+			*d.Data.Latitude)
+		distance := distance(
+			config.Config.StationLongitude,
+			config.Config.StationLatitude,
+			*d.Data.Longitude,
+			*d.Data.Latitude)
+		bearing = bearing + 180
+		v, ok := rv[int(bearing)]
+		if !ok || v.Distance < distance {
+			rv[int(bearing)] = polarResponse{
+				Distance: distance,
+				Data:     d,
+			}
+		}
+	}
+	return rv
+}
+
 func Serve(aggr aggregator.Aggregator, address string) error {
 	h := &handler{
 		aggr:       aggr,
@@ -277,11 +259,11 @@ func Serve(aggr aggregator.Aggregator, address string) error {
 	go h.runStats()
 
 	router := httprouter.New()
-	router.GET("/planes.json", api.Wrap(h.planes))
-	router.GET("/plane/:icao", api.Wrap(h.plane))
-	router.GET("/range.json", api.Wrap(h.timeRange))
-	router.GET("/polar.json", api.Wrap(h.polar))
-	router.GET("/stats.json", api.Wrap(h.stats))
+	router.GET("/planes.json", api.Wrap(h.Planes))
+	router.GET("/plane/:icao", api.Wrap(h.Plane))
+	router.GET("/range.json", api.Wrap(h.TimeRange))
+	router.GET("/polar.json", api.Wrap(h.Polar))
+	router.GET("/stats.json", api.Wrap(h.Stats))
 
 	return http.ListenAndServe(address, router)
 }
