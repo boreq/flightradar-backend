@@ -21,8 +21,10 @@ func New(s storage.Storage) Aggregator {
 	return rv
 }
 
-// storeEvery specifies how often the data is permanently stored.
-const storeEvery = 5 * time.Second
+// default specifies how often the data is permanently stored by default. If
+// the aircraft altitude is known this value might be different - see
+// aggregator.getStoreEvery.
+const defaultStoreEvery = 5 * time.Second
 
 // dataTimeoutThreshold specifies at which point the cached newest data is
 // considered outdated - how long plane's data can be saved or retrieved
@@ -74,7 +76,7 @@ func (a *aggregator) process(d storage.Data) {
 	// data.
 	if d.Latitude != nil && d.Longitude != nil {
 		lastStoredData, ok := a.stored[*d.Icao]
-		if !ok || time.Since(lastStoredData.Time) > storeEvery {
+		if !ok || time.Since(lastStoredData.Time) > a.getStoreEvery(d.Altitude) {
 			if !ok || (*storedData.Data.Latitude != *lastStoredData.Data.Latitude &&
 				*storedData.Data.Longitude != *lastStoredData.Data.Longitude) {
 				if err := a.storage.Store(storedData); err != nil {
@@ -99,6 +101,28 @@ func (a *aggregator) cleanup() {
 		}
 	}
 
+}
+func (a *aggregator) getStoreEvery(altitude *int) time.Duration {
+	if altitude != nil {
+		a := *altitude
+		if a < 10000 {
+			return 5 * time.Second
+		}
+		if a >= 10000 && a < 15000 {
+			return 10 * time.Second
+		}
+		if a >= 15000 && a < 20000 {
+			return 15 * time.Second
+		}
+		if a >= 20000 && a < 25000 {
+			return 20 * time.Second
+		}
+		if a >= 25000 && a < 30000 {
+			return 25 * time.Second
+		}
+		return 30 * time.Second
+	}
+	return defaultStoreEvery
 }
 
 func (a *aggregator) Newest() map[string]storage.Data {
