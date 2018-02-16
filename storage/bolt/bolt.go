@@ -26,7 +26,7 @@ const rfc3339NanoSortable = "2006-01-02T15:04:05.000000000Z07:00"
 func New(filepath string) (storage.Storage, error) {
 	// Open the database, create it if needed. Timeout ensures that the
 	// function will not block idefinietly.
-	db, err := bolt.Open(filepath, 0600, &bolt.Options{Timeout: 10 * time.Second})
+	db, err := bolt.Open(filepath, 0644, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		return nil, err
 	}
