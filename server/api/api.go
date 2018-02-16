@@ -4,9 +4,12 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/boreq/flightradar-backend/logging"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 )
+
+var log = logging.GetLogger("api")
 
 var InternalServerError = NewError(500, "Internal server error.")
 var BadRequest = NewError(400, "Bad request.")
@@ -44,7 +47,9 @@ func Call(w http.ResponseWriter, r *http.Request, p httprouter.Params, handle Ha
 	}
 	j, err := json.Marshal(response)
 	if err != nil {
-		return err
+		log.Printf("Marshal error: %s", err)
+		j, _ = json.Marshal(InternalServerError)
+		code = InternalServerError.GetCode()
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")

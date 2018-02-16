@@ -17,12 +17,6 @@ import (
 
 var log = logging.GetLogger("server")
 
-type stats struct {
-	DataPointsNumber int `json:"data_points_number"`
-	PlanesNumber     int `json:"planes_number"`
-	FlightsNumber    int `json:"flights_number"`
-}
-
 type handler struct {
 	aggr       aggregator.Aggregator
 	statsCache map[string]stats
@@ -107,7 +101,14 @@ func (h *handler) polar(r *http.Request, _ httprouter.Params) (interface{}, api.
 		return nil, api.InternalServerError
 	}
 
-	response := make(map[int]polarResponse)
+	response := toPolar(data)
+
+	fmt.Printf("Polar seconds: %f\n", time.Since(now).Seconds())
+	return response, nil
+}
+
+func toPolar(data []storage.StoredData) map[int]polarResponse {
+	rv := make(map[int]polarResponse)
 	for _, d := range data {
 		if d.Data.Longitude == nil || d.Data.Latitude == nil {
 			continue
@@ -123,17 +124,15 @@ func (h *handler) polar(r *http.Request, _ httprouter.Params) (interface{}, api.
 			*d.Data.Longitude,
 			*d.Data.Latitude)
 		bearing = bearing + 180
-		v, ok := response[int(bearing)]
+		v, ok := rv[int(bearing)]
 		if !ok || v.Distance < distance {
-			response[int(bearing)] = polarResponse{
+			rv[int(bearing)] = polarResponse{
 				Distance: distance,
 				Data:     d,
 			}
 		}
 	}
-
-	fmt.Printf("Polar seconds: %f\n", time.Since(now).Seconds())
-	return response, nil
+	return rv
 }
 
 func (h *handler) plane(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
@@ -150,6 +149,15 @@ func (h *handler) plane(r *http.Request, ps httprouter.Params) (interface{}, api
 	return response, nil
 }
 
+type stats struct {
+	DataPointsNumber int     `json:"data_points_number"`
+	PlanesNumber     int     `json:"planes_number"`
+	FlightsNumber    int     `json:"flights_number"`
+	AverageDistance  float64 `json:"average_distance"`
+	MedianDistance   float64 `json:"median_distance"`
+	MaxDistance      float64 `json:"max_distance"`
+}
+
 type statsResponse struct {
 	Date string `json:"date"`
 	Data stats  `json:"data"`
@@ -158,6 +166,7 @@ type statsResponse struct {
 func (h *handler) stats(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
 	response := make([]statsResponse, 0)
 	for k, v := range h.statsCache {
+		log.Printf("polar %s %+v", k, v)
 		response = append(response, statsResponse{k, v})
 	}
 	sort.Slice(response, func(i, j int) bool { return response[i].Date < response[j].Date })
@@ -217,6 +226,7 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 		return rv, err
 	}
 
+	// Data points calculations
 	uniquePlanes := make(map[string]bool)
 	uniqueFlights := make(map[string]bool)
 	for _, storedData := range data {
@@ -230,6 +240,31 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	}
 	rv.PlanesNumber = len(uniquePlanes)
 	rv.FlightsNumber = len(uniqueFlights)
+
+	// Range calculations
+	var sum float64 = 0
+	var max float64 = 0
+	var distances []float64
+
+	polar := toPolar(data)
+	log.Printf("polar %d", len(polar))
+	for _, v := range polar {
+		sum += v.Distance
+		if v.Distance > max {
+			max = v.Distance
+		}
+		distances = append(distances, v.Distance)
+	}
+	sort.Slice(distances, func(i, j int) bool { return distances[i] < distances[j] })
+
+	rv.MaxDistance = max
+	if len(distances) > 0 {
+		rv.MedianDistance = distances[len(distances)/2]
+		rv.AverageDistance = sum / float64(len(polar))
+	} else {
+		rv.MedianDistance = 0
+		rv.AverageDistance = 0
+	}
 
 	return rv, nil
 }
