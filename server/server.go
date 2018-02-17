@@ -94,31 +94,41 @@ func (h *handler) Plane(r *http.Request, ps httprouter.Params) (interface{}, api
 }
 
 type stats struct {
-	DataPointsNumber int     `json:"data_points_number"`
-	PlanesNumber     int     `json:"planes_number"`
-	FlightsNumber    int     `json:"flights_number"`
-	AverageDistance  float64 `json:"average_distance"`
-	MedianDistance   float64 `json:"median_distance"`
-	MaxDistance      float64 `json:"max_distance"`
+	DataPointsNumber               int         `json:"data_points_number"`
+	DataPointsAltitudeCrossSection map[int]int `json:"data_points_altitude_cross_section"`
+	PlanesNumber                   int         `json:"planes_number"`
+	FlightsNumber                  int         `json:"flights_number"`
+	AverageDistance                float64     `json:"average_distance"`
+	MedianDistance                 float64     `json:"median_distance"`
+	MaxDistance                    float64     `json:"max_distance"`
 }
 
-type statsResponse struct {
+type dailyStats struct {
 	Date string `json:"date"`
 	Data stats  `json:"data"`
 }
 
+type statsResponse struct {
+	Stats                    []dailyStats `json:"stats"`
+	AltitudeCrossSectionStep int          `json:"altitude_cross_section_step"`
+}
+
 func (h *handler) Stats(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
-	response := make([]statsResponse, 0)
-	for k, v := range h.statsCache {
-		response = append(response, statsResponse{k, v})
+	response := statsResponse{
+		AltitudeCrossSectionStep: statsAltitudeCrossSectionStep,
+		Stats: make([]dailyStats, 0),
 	}
-	sort.Slice(response, func(i, j int) bool { return response[i].Date < response[j].Date })
+	for k, v := range h.statsCache {
+		response.Stats = append(response.Stats, dailyStats{k, v})
+	}
+	sort.Slice(response.Stats, func(i, j int) bool { return response.Stats[i].Date < response.Stats[j].Date })
 	return response, nil
 }
 
 const statsCacheDateLayout = "2006-01-02"
 const statsDataPoints = 30 // number of days stats are generated for
 const statsUpdateEvery = 60 * time.Minute
+const statsAltitudeCrossSectionStep = 5000
 
 func (h *handler) runStats() {
 	h.updateStats()
@@ -172,17 +182,31 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	// Data points calculations
 	uniquePlanes := make(map[string]bool)
 	uniqueFlights := make(map[string]bool)
+	altitudeCrossSection := make(map[int]int)
 	for _, storedData := range data {
 		rv.DataPointsNumber++
+
 		if storedData.Data.Icao != nil {
 			uniquePlanes[*storedData.Data.Icao] = true
 		}
+
 		if storedData.Data.FlightNumber != nil {
 			uniqueFlights[*storedData.Data.FlightNumber] = true
 		}
+
+		var key int = -1
+		if storedData.Data.Altitude != nil {
+			key = *storedData.Data.Altitude / statsAltitudeCrossSectionStep
+		}
+		value, ok := altitudeCrossSection[key]
+		if !ok {
+			value = 0
+		}
+		altitudeCrossSection[key] = value + 1
 	}
 	rv.PlanesNumber = len(uniquePlanes)
 	rv.FlightsNumber = len(uniqueFlights)
+	rv.DataPointsAltitudeCrossSection = altitudeCrossSection
 
 	// Range calculations
 	var sum float64 = 0
