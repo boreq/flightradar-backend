@@ -8,6 +8,7 @@ import (
 	"github.com/boreq/flightradar-backend/server/api"
 	"github.com/boreq/flightradar-backend/storage"
 	"github.com/julienschmidt/httprouter"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -57,9 +58,6 @@ type polarResponse struct {
 }
 
 func (h *handler) Polar(r *http.Request, _ httprouter.Params) (interface{}, api.Error) {
-	now := time.Now()
-	defer func() { log.Debugf("Polar seconds: %f\n", time.Since(now).Seconds()) }()
-
 	from, err := timestampParamToTime(r, "from")
 	if err != nil {
 		return nil, api.BadRequest
@@ -70,12 +68,11 @@ func (h *handler) Polar(r *http.Request, _ httprouter.Params) (interface{}, api.
 		return nil, api.BadRequest
 	}
 
-	log.Debugf("%s, %s", from, to)
-
 	data, err := h.aggr.RetrieveTimerange(from, to)
 	if err != nil {
 		return nil, api.InternalServerError
 	}
+
 	return toPolar(data), nil
 }
 
@@ -140,7 +137,11 @@ func (h *handler) runStats() {
 }
 
 func (h *handler) updateStats() {
-	// Cleanup
+	h.cleanupStats()
+	h.loadStats()
+}
+
+func (h *handler) cleanupStats() {
 	for k, _ := range h.statsCache {
 		t, err := time.Parse(statsCacheDateLayout, k)
 		if err != nil {
@@ -152,8 +153,9 @@ func (h *handler) updateStats() {
 			delete(h.statsCache, k)
 		}
 	}
+}
 
-	// Load new
+func (h *handler) loadStats() {
 	for i := 0; i < statsDataPoints; i++ {
 		start := time.Now().UTC().AddDate(0, 0, -i).Truncate(24 * time.Hour)
 		end := start.AddDate(0, 0, 1)
@@ -214,6 +216,7 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	var distances []float64
 
 	polar := toPolar(data)
+
 	for _, v := range polar {
 		sum += v.Distance
 		if v.Distance > max {
@@ -221,6 +224,7 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 		}
 		distances = append(distances, v.Distance)
 	}
+
 	sort.Slice(distances, func(i, j int) bool { return distances[i] < distances[j] })
 
 	rv.MaxDistance = max
@@ -247,31 +251,63 @@ func timestampParamToTime(r *http.Request, name string) (time.Time, error) {
 	return time.Unix(timestamp, 0), nil
 }
 
+const multiplier = (2.0 * math.Pi * 6371.0 / 360.0)
+
+func fakeDistance(lon1, lat1, lon2, lat2 float64) float64 {
+	a := lon2 - lon1
+	b := lat2 - lat1
+	return math.Sqrt(a*a+b*b) * multiplier
+}
+
+func fakeBearing(lon1, lat1, lon2, lat2 float64) float64 {
+	return degrees(math.Atan2(lon2-lon1, lat2-lat1))
+}
+
 func toPolar(data []storage.StoredData) map[int]polarResponse {
-	rv := make(map[int]polarResponse)
-	for _, d := range data {
-		if d.Data.Longitude == nil || d.Data.Latitude == nil {
+	// Initial calculations with faster cartesian functions
+	tmp := make(map[int]polarResponse)
+	for i := 0; i < len(data); i++ {
+		if data[i].Data.Longitude == nil || data[i].Data.Latitude == nil {
 			continue
 		}
-		bearing := bearing(
+		b := fakeBearing(
 			config.Config.StationLongitude,
 			config.Config.StationLatitude,
-			*d.Data.Longitude,
-			*d.Data.Latitude)
-		distance := distance(
+			*data[i].Data.Longitude,
+			*data[i].Data.Latitude)
+		d := fakeDistance(
 			config.Config.StationLongitude,
 			config.Config.StationLatitude,
-			*d.Data.Longitude,
-			*d.Data.Latitude)
-		bearing = bearing + 180
-		v, ok := rv[int(bearing)]
-		if !ok || v.Distance < distance {
-			rv[int(bearing)] = polarResponse{
-				Distance: distance,
-				Data:     d,
+			*data[i].Data.Longitude,
+			*data[i].Data.Latitude)
+		b = b + 180
+		v, ok := tmp[int(b)]
+		if !ok || v.Distance < d {
+			tmp[int(b)] = polarResponse{
+				Distance: d,
+				Data:     data[i],
 			}
 		}
 	}
+
+	// Recalculate the selected points for increased accuracy
+	rv := make(map[int]polarResponse)
+	for _, v := range tmp {
+		d := distance(
+			config.Config.StationLongitude,
+			config.Config.StationLatitude,
+			*v.Data.Data.Longitude,
+			*v.Data.Data.Latitude)
+		b := bearing(
+			config.Config.StationLongitude,
+			config.Config.StationLatitude,
+			*v.Data.Data.Longitude,
+			*v.Data.Data.Latitude)
+		b = b + 180
+		v.Distance = d
+		rv[int(b)] = v
+	}
+
 	return rv
 }
 
