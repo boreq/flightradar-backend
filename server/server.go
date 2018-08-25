@@ -173,6 +173,8 @@ func (h *handler) loadStats() {
 	}
 }
 
+const distanceThreshold = 1000
+
 func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	rv := stats{}
 
@@ -218,6 +220,9 @@ func (h *handler) getStatsForRange(from, to time.Time) (stats, error) {
 	polar := toPolar(data)
 
 	for _, v := range polar {
+		if v.Distance > distanceThreshold {
+			continue
+		}
 		sum += v.Distance
 		if v.Distance > max {
 			max = v.Distance
