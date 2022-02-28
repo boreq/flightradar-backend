@@ -12,8 +12,8 @@ import (
 var importCmd = guinea.Command{
 	Run: runImport,
 	Arguments: []guinea.Argument{
-		{"config", false, "Config file"},
-		{"source", false, "Source file"},
+		{"config", false, false, "Config file"},
+		{"source", false, false, "Source file"},
 	},
 	ShortDescription: "imports data from a file",
 }

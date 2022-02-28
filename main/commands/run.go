@@ -11,7 +11,7 @@ import (
 var runCmd = guinea.Command{
 	Run: runRun,
 	Arguments: []guinea.Argument{
-		{"config", false, "Config file"},
+		{"config", false, false, "Config file"},
 	},
 	ShortDescription: "runs the program",
 }

@@ -9,8 +9,8 @@ import (
 var exportCmd = guinea.Command{
 	Run: runExport,
 	Arguments: []guinea.Argument{
-		{"config", false, "Config file"},
-		{"destination", false, "Destination file"},
+		{"config", false, false, "Config file"},
+		{"destination", false, false, "Destination file"},
 	},
 	ShortDescription: "exports data to a file",
 }
