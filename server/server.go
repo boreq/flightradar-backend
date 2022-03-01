@@ -113,7 +113,7 @@ type statsResponse struct {
 func (h *handler) Stats(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
 	response := statsResponse{
 		AltitudeCrossSectionStep: statsAltitudeCrossSectionStep,
-		Stats: make([]dailyStats, 0),
+		Stats:                    make([]dailyStats, 0),
 	}
 	for k, v := range h.statsCache {
 		response.Stats = append(response.Stats, dailyStats{k, v})
@@ -270,7 +270,7 @@ func fakeBearing(lon1, lat1, lon2, lat2 float64) float64 {
 
 func toPolar(data []storage.StoredData) map[int]polarResponse {
 	// Initial calculations with faster cartesian functions
-	tmp := make(map[int]polarResponse)
+	result := make(map[int]polarResponse)
 	for i := 0; i < len(data); i++ {
 		if data[i].Data.Longitude == nil || data[i].Data.Latitude == nil {
 			continue
@@ -286,9 +286,9 @@ func toPolar(data []storage.StoredData) map[int]polarResponse {
 			*data[i].Data.Longitude,
 			*data[i].Data.Latitude)
 		b = b + 180
-		v, ok := tmp[int(b)]
+		v, ok := result[int(b)]
 		if !ok || v.Distance < d {
-			tmp[int(b)] = polarResponse{
+			result[int(b)] = polarResponse{
 				Distance: d,
 				Data:     data[i],
 			}
@@ -297,23 +297,17 @@ func toPolar(data []storage.StoredData) map[int]polarResponse {
 
 	// Recalculate the selected points for increased accuracy
 	rv := make(map[int]polarResponse)
-	for _, v := range tmp {
+	for k, v := range result {
 		d := distance(
 			config.Config.StationLongitude,
 			config.Config.StationLatitude,
 			*v.Data.Data.Longitude,
 			*v.Data.Data.Latitude)
-		b := bearing(
-			config.Config.StationLongitude,
-			config.Config.StationLatitude,
-			*v.Data.Data.Longitude,
-			*v.Data.Data.Latitude)
-		b = b + 180
 		v.Distance = d
-		rv[int(b)] = v
+		rv[k] = v
 	}
 
-	return rv
+	return result
 }
 
 func Serve(aggr aggregator.Aggregator, address string) error {
